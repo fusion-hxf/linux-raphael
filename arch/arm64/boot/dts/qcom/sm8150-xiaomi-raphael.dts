@@ -11,6 +11,7 @@
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/usb/pd.h>
+#include <dt-bindings/sound/qcom,q6asm.h>
 #include "sm8150.dtsi"
 #include "pm8150.dtsi"
 #include "pm8150b.dtsi"
@@ -1184,3 +1185,6 @@
 
 	status = "okay";
 };
+
+/* 音频 bring-up（声卡 / WCD9340 / TFA9872），见 audio-dts-draft/README.md */
+#include "sm8150-xiaomi-raphael-audio.dtsi"
