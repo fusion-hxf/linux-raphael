@@ -188,7 +188,13 @@
 
 /* ======================= TFA9872 扬声器功放 on I2C =======================
  * 下游：qupv3_se1_i2c @ 0x34，reset GPIO59(SPKR_PA_RST)，irq GPIO141(SPKR_INT)。
- * mainline i2c1 = i2c@884000 = QUP SE1。驱动 = GengWei raphael-7.1 的 tfa9872（nxp,tfa9872/9874）。*/
+ * mainline i2c1 = i2c@884000 = QUP0 SE1。驱动 = GengWei raphael-7.1 的 tfa9872（nxp,tfa9872/9874）。
+ * 关键：i2c1 的父 GENI QUP 包装器 qupv3_id_0 默认 disabled，必须一并 enable，
+ * 否则 i2c1 总线起不来、tfa 不 probe → 声卡因 "Speaker Playback: codec dai not found" 永久 defer。*/
+&qupv3_id_0 {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;
