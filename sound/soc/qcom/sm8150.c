@@ -335,10 +335,15 @@ static int sm8150_snd_startup(struct snd_pcm_substream *substream)
 	case SLIMBUS_0_RX...SLIMBUS_6_TX:
 		break;
 	case QUATERNARY_MI2S_RX:
-		/* 扬声器：QUAT MI2S，q6afe 作 master，TFA 作 slave；I2S 格式。
-		 * LPASS MI2S 端口除了位时钟(IBIT)，还需先使能 MCLK 根时钟——否则端口能
-		 * 配置(port_start 成功)但数据一流动 ADSP 就静默失败 → aplay 写入 EIO。
-		 * 参照 sdm845.c 的 MI2S 处理：MCLK_1 + <port>_MI2S_IBIT 成对设置。 */
+		/* 扬声器：QUAT MI2S，q6afe(CPU) 作 I2S master、TFA(codec) 作 slave。
+		 *
+		 * 关键坑：q6afe_i2s_port_prepare() 直接按 fmt 的 CLOCK_PROVIDER 位判主从：
+		 *   BP_FP(=CBP_CFP, 本 DAI 提供时钟) → ws_src=INTERNAL（q6afe 作 master）
+		 *   BC_FC(=CBC_CFC, 本 DAI 消费时钟) → ws_src=EXTERNAL（q6afe 作 slave）
+		 * 给 CPU DAI 传 CBC_CFC（值=4<<12，等同 BC_FC）会把 q6afe 配成 slave、等外部
+		 * 时钟，而 TFA 也是 slave 不提供时钟 → 无人产生位时钟 → 端口 stall（数据被瞬间
+		 * flush、不按 48kHz 吐）→ aplay 下溢 EIO。故 CPU DAI 必须用 BP_FP 表示自己是 master。
+		 * MCLK_1 一并使能（部分 LPASS 配置需要根时钟，无害）。 */
 		codec_dai_fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_I2S;
 		snd_soc_dai_set_sysclk(cpu_dai,
 			Q6AFE_LPASS_CLK_ID_MCLK_1,
@@ -346,7 +351,8 @@ static int sm8150_snd_startup(struct snd_pcm_substream *substream)
 		snd_soc_dai_set_sysclk(cpu_dai,
 			Q6AFE_LPASS_CLK_ID_QUAD_MI2S_IBIT,
 			MI2S_BCLK_RATE, SNDRV_PCM_STREAM_PLAYBACK);
-		snd_soc_dai_set_fmt(cpu_dai, fmt);
+		snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_BP_FP);
 		snd_soc_dai_set_fmt(codec_dai, codec_dai_fmt);
 		break;
 	default:
