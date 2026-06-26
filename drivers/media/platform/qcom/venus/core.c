@@ -1119,6 +1119,67 @@ static const struct venus_resources qcm2290_res = {
 	.min_fw = &min_fw,
 };
 
+/*
+ * SM8150 (Iris1) — first bring-up resource set.
+ *
+ * Modelled as close to sm8250 (Iris2) as possible to reuse its proven V6 path.
+ * vpu_version is deliberately set to VPU_VERSION_IRIS2 for this first build:
+ * every hardware-register-layout / bring-up site in the driver (register
+ * offsets in venus_assign_register_offsets(), the wrapper_tz / AON / interrupt
+ * handling in hfi_venus.c, the CPU reset in firmware.c) is gated on
+ * IS_IRIS2()/IS_IRIS2_1(); Iris1 shares that V6 register layout (same reg base
+ * 0xaa00000 and IRQ 174 as sm8250), so routing through the IRIS2 path
+ * guarantees we hit the known-good sequence rather than the legacy V4 offsets.
+ * TODO(upstream): once hardware bring-up is confirmed, switch to
+ * VPU_VERSION_IRIS1 and add IS_IRIS1() to each of those hardware sites.
+ *
+ * The secure content-protect region (cp_*) is left at 0 like sm8250 to avoid an
+ * extra TZ call on the first build — set it later (downstream pools:
+ * cp_size=0x25800000, cp_nonpixel_start=0x1000000, cp_nonpixel_size=0x24800000)
+ * if secure decode is needed. num_vpp_pipes=4 and max_load are to be confirmed
+ * once the first stream encodes. Bandwidth tables are borrowed from sm8250 and
+ * are only consulted when an interconnect path is present (none wired yet).
+ */
+static const struct freq_tbl sm8150_freq_table[] = {
+	{ 0, 480000000 },
+	{ 0, 432000000 },
+	{ 0, 365000000 },
+	{ 0, 300000000 },
+	{ 0, 225000000 },
+};
+
+static const struct venus_resources sm8150_res = {
+	.freq_tbl = sm8150_freq_table,
+	.freq_tbl_size = ARRAY_SIZE(sm8150_freq_table),
+	.reg_tbl = sm8250_reg_preset,
+	.reg_tbl_size = ARRAY_SIZE(sm8250_reg_preset),
+	.bw_tbl_enc = sm8250_bw_table_enc,
+	.bw_tbl_enc_size = ARRAY_SIZE(sm8250_bw_table_enc),
+	.bw_tbl_dec = sm8250_bw_table_dec,
+	.bw_tbl_dec_size = ARRAY_SIZE(sm8250_bw_table_dec),
+	.clks = {"core", "iface"},
+	.clks_num = 2,
+	.resets = { "bus", "core" },
+	.resets_num = 2,
+	.vcodec0_clks = { "vcodec0_core" },
+	.vcodec_clks_num = 1,
+	.vcodec_pmdomains = (const char *[]) { "venus", "vcodec0" },
+	.vcodec_pmdomains_num = 2,
+	.opp_pmdomain = (const char *[]) { "mx" },
+	.vcodec_num = 1,
+	.max_load = 4147200,	/* 4096x2160@60 — verify */
+	.hfi_version = HFI_VERSION_6XX,
+	.vpu_version = VPU_VERSION_IRIS2,	/* see comment above; Iris1 shares V6 layout */
+	.num_vpp_pipes = 4,
+	.vmem_id = VIDC_RESOURCE_NONE,
+	.vmem_size = 0,
+	.vmem_addr = 0,
+	.dma_mask = 0xe0000000 - 1,
+	.fwname = "qcom/sm8150/Xiaomi/raphael/venus.mbn",
+	.dec_nodename = "video-decoder",
+	.enc_nodename = "video-encoder",
+};
+
 static const struct of_device_id venus_dt_match[] = {
 	{ .compatible = "qcom,msm8916-venus", .data = &msm8916_res, },
 	{ .compatible = "qcom,msm8996-venus", .data = &msm8996_res, },
@@ -1129,6 +1190,7 @@ static const struct of_device_id venus_dt_match[] = {
 	{ .compatible = "qcom,sdm660-venus", .data = &sdm660_res, },
 	{ .compatible = "qcom,sdm845-venus", .data = &sdm845_res, },
 	{ .compatible = "qcom,sdm845-venus-v2", .data = &sdm845_res_v2, },
+	{ .compatible = "qcom,sm8150-venus", .data = &sm8150_res, },
 	{ .compatible = "qcom,sm8250-venus", .data = &sm8250_res, },
 	{ }
 };

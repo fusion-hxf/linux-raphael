@@ -1127,6 +1127,11 @@
 	};
 };
 
+&venus {
+	status = "okay";
+	firmware-name = "qcom/sm8150/Xiaomi/raphael/venus.mbn";
+};
+
 &ufs_mem_hc {
 	status = "okay";
 
